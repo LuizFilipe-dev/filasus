@@ -1,0 +1,411 @@
+<title>FilaSUS Kanban</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap">
+
+<style>
+/* Layout: drag-and-drop Kanban board with FilaSUS identity */
+:root {
+  --bg: #f5f7fa;
+  --fg: #1B3A5C;
+  --fg-secondary: #5a6a7e;
+  --surface: #ffffff;
+  --border: #e2e6ec;
+  --accent: #2EC4B6;
+  --accent-hover: #28b0a3;
+  --col-backlog: #8b95a5;
+  --col-todo: #E63946;
+  --col-doing: #f4a223;
+  --col-review: #2EC4B6;
+  --col-done: #1B3A5C;
+  --tag-alta: #E63946;
+  --tag-media: #f4a223;
+  --tag-baixa: #8b95a5;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow-card: 0 1px 3px rgba(27,58,92,0.08), 0 1px 2px rgba(27,58,92,0.04);
+  --shadow-drag: 0 8px 24px rgba(27,58,92,0.18);
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1724;
+    --fg: #e4e8ee;
+    --fg-secondary: #8a95a8;
+    --surface: #1a2538;
+    --border: #2a3a50;
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-drag: 0 8px 24px rgba(0,0,0,0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1724;
+  --fg: #e4e8ee;
+  --fg-secondary: #8a95a8;
+  --surface: #1a2538;
+  --border: #2a3a50;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-drag: 0 8px 24px rgba(0,0,0,0.5);
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+  min-height: 100vh;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-block: 20px 16px;
+  flex-wrap: wrap;
+}
+
+.header h1 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--fg);
+  text-wrap: balance;
+  flex: 1;
+  min-width: 200px;
+}
+
+.header .badge {
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.sprint-info {
+  font-size: 0.82rem;
+  color: var(--fg-secondary);
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 24px;
+  min-height: 60vh;
+}
+
+@media (max-width: 900px) {
+  .board {
+    grid-template-columns: repeat(5, minmax(220px, 1fr));
+  }
+}
+
+.column {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.column-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.column-title {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-secondary);
+}
+
+.column-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--fg-secondary);
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-left: auto;
+}
+
+.column-cards {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+}
+
+.column-cards.drag-over {
+  background: rgba(46, 196, 182, 0.06);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  cursor: grab;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.15s, transform 0.15s;
+  user-select: none;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-drag);
+  transform: translateY(-1px);
+}
+
+.card.dragging {
+  opacity: 0.5;
+  transform: scale(0.96);
+}
+
+.card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.card-tag.alta { background: var(--tag-alta); }
+.card-tag.media { background: var(--tag-media); }
+.card-tag.baixa { background: var(--tag-baixa); }
+
+.card-assignee {
+  font-size: 0.72rem;
+  color: var(--fg-secondary);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.card-desc {
+  font-size: 0.75rem;
+  color: var(--fg-secondary);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-block: 12px 20px;
+  font-size: 0.75rem;
+  color: var(--fg-secondary);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.footer {
+  font-size: 0.72rem;
+  color: var(--fg-secondary);
+  padding-block: 12px 24px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+</style>
+
+<div class="header">
+  <h1>FilaSUS</h1>
+  <span class="badge">Kanban</span>
+</div>
+
+<div class="sprint-info">
+  Sprint atual: Validação e MVP &middot; Nov/Dez 2026 &middot; Projeto Integrador Startups, UCB
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--tag-alta)"></div> Alta</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--tag-media)"></div> Média</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--tag-baixa)"></div> Baixa</div>
+</div>
+
+<div class="board" id="board"></div>
+
+<div class="footer">
+  FilaSUS &middot; Projeto Integrador Startups 2026/2 &middot; Universidade Católica de Brasília
+</div>
+
+<script>
+const COLUMNS = [
+  { id: 'backlog', title: 'Backlog', color: '#8b95a5' },
+  { id: 'todo', title: 'A Fazer', color: '#E63946' },
+  { id: 'doing', title: 'Em Andamento', color: '#f4a223' },
+  { id: 'review', title: 'Em Revisão', color: '#2EC4B6' },
+  { id: 'done', title: 'Concluído', color: '#1B3A5C' }
+];
+
+const CARDS = [
+  // BACKLOG
+  { id: 'c1', col: 'backlog', title: 'Integração com o SISREG', priority: 'baixa', assignee: 'Antônio', desc: 'Investigar API do SISREG para leitura de filas e status de agendamentos' },
+  { id: 'c2', col: 'backlog', title: 'Notificação de cascata automática', priority: 'media', assignee: 'Luiz', desc: 'Quando paciente cancela, disparar oferta para o próximo elegível (R1-R4)' },
+  { id: 'c3', col: 'backlog', title: 'Dashboard público de transparência', priority: 'baixa', assignee: 'Rafael', desc: 'Painel aberto para o cidadão ver estatísticas agregadas da fila' },
+
+  // A FAZER
+  { id: 'c4', col: 'todo', title: 'Roteiro de entrevista com gestores (H3)', priority: 'alta', assignee: 'Arthur Ab.', desc: 'Preparar e conduzir entrevistas com secretários de saúde sobre disposição a pagar' },
+  { id: 'c5', col: 'todo', title: 'Regras de elegibilidade R1 a R4', priority: 'alta', assignee: 'Luiz', desc: 'Implementar lógica de mesma especialidade, prioridade, encaminhamento válido e viabilidade de deslocamento' },
+  { id: 'c6', col: 'todo', title: 'Teste de usabilidade rodada 2', priority: 'media', assignee: 'Rafael', desc: 'Aplicar teste com 5 novos participantes usando protótipo atualizado' },
+
+  // EM ANDAMENTO
+  { id: 'c7', col: 'doing', title: 'Fluxo de confirmação por WhatsApp', priority: 'alta', assignee: 'Antônio', desc: 'Integração com API do WhatsApp Business para confirmar/cancelar consulta' },
+  { id: 'c8', col: 'doing', title: 'Entrevistas com pacientes (H1/H2)', priority: 'alta', assignee: 'Arthur Ab.', desc: 'Conduzir entrevistas de descoberta sobre faltas e reaproveitamento de vagas' },
+  { id: 'c9', col: 'doing', title: 'Documento do Projeto Integrador', priority: 'media', assignee: 'Luiz', desc: 'Redigir e consolidar as 12 seções do documento final' },
+
+  // EM REVISÃO
+  { id: 'c10', col: 'review', title: 'Protótipo interativo v3', priority: 'alta', assignee: 'Rafael', desc: 'Protótipo HTML com 3 abas (Minha Fila, WhatsApp, Admin) finalizado e publicado' },
+  { id: 'c11', col: 'review', title: 'Pitch Deck (slides)', priority: 'media', assignee: 'Victor', desc: 'Apresentação de 15 slides para Demo Day, revisão final' },
+
+  // CONCLUÍDO
+  { id: 'c12', col: 'done', title: 'Repositório GitHub', priority: 'media', assignee: 'Luiz', desc: 'Repositório criado e protótipo publicado no GitHub Pages' },
+  { id: 'c13', col: 'done', title: 'Pesquisa de absenteísmo (dados reais)', priority: 'alta', assignee: 'Arthur Ab.', desc: 'Levantamento com fontes reais: taxa entre 13% e 27%, custo médio R$ 236/consulta' },
+  { id: 'c14', col: 'done', title: 'Personas e triângulo do cliente', priority: 'media', assignee: 'Arthur C.', desc: 'Dona Maria (paciente), Dr. Renato (médico), Dra. Patrícia (gestora) definidos' },
+  { id: 'c15', col: 'done', title: 'Business Model Canvas', priority: 'alta', assignee: 'Victor', desc: 'Canvas completo com gain-sharing e 9 blocos preenchidos' },
+  { id: 'c16', col: 'done', title: 'Value Proposition Canvas', priority: 'media', assignee: 'Arthur C.', desc: 'VPC para paciente e gestor com jobs, pains e gains mapeados' }
+];
+
+let cards = [];
+try {
+  const saved = localStorage.getItem('filasus-kanban-cards');
+  if (saved) cards = JSON.parse(saved);
+  else cards = CARDS.map(c => ({...c}));
+} catch(e) {
+  cards = CARDS.map(c => ({...c}));
+}
+
+function save() {
+  try { localStorage.setItem('filasus-kanban-cards', JSON.stringify(cards)); } catch(e) {}
+}
+
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  COLUMNS.forEach(col => {
+    const colCards = cards.filter(c => c.col === col.id);
+    const colEl = document.createElement('div');
+    colEl.className = 'column';
+    colEl.innerHTML = `
+      <div class="column-header">
+        <div class="column-dot" style="background:${col.color}"></div>
+        <div class="column-title">${col.title}</div>
+        <div class="column-count">${colCards.length}</div>
+      </div>
+    `;
+
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'column-cards';
+    cardsContainer.dataset.col = col.id;
+
+    cardsContainer.addEventListener('dragover', e => {
+      e.preventDefault();
+      cardsContainer.classList.add('drag-over');
+    });
+    cardsContainer.addEventListener('dragleave', () => {
+      cardsContainer.classList.remove('drag-over');
+    });
+    cardsContainer.addEventListener('drop', e => {
+      e.preventDefault();
+      cardsContainer.classList.remove('drag-over');
+      const cardId = e.dataTransfer.getData('text/plain');
+      const card = cards.find(c => c.id === cardId);
+      if (card) {
+        card.col = col.id;
+        save();
+        render();
+      }
+    });
+
+    colCards.forEach(card => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.draggable = true;
+      cardEl.dataset.id = card.id;
+
+      cardEl.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', card.id);
+        cardEl.classList.add('dragging');
+      });
+      cardEl.addEventListener('dragend', () => {
+        cardEl.classList.remove('dragging');
+      });
+
+      cardEl.innerHTML = `
+        <div class="card-title">${card.title}</div>
+        ${card.desc ? `<div class="card-desc">${card.desc}</div>` : ''}
+        <div class="card-meta">
+          <span class="card-tag ${card.priority}">${card.priority}</span>
+          <span class="card-assignee">${card.assignee}</span>
+        </div>
+      `;
+      cardsContainer.appendChild(cardEl);
+    });
+
+    colEl.appendChild(cardsContainer);
+    board.appendChild(colEl);
+  });
+}
+
+render();
+</script>
